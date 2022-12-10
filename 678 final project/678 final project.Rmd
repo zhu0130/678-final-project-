@@ -1,0 +1,243 @@
+---
+title: "678final Haocheng Zhu"
+output:
+  word_document: default
+  html_document: default
+date: '2022-12-05'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(janeaustenr)
+library(tidytext)
+library(wordcloud2)
+library(readxl)
+library(fastDummies)
+library(reshape2)
+library(factoextra)
+library(jiebaR)
+library(lmerTest)
+```
+## Abstract and introduction
+
+Spotify is a digital music, podcast, and video service that gives you access to millions of songs and other content from creators all over the world. Basic functions such as playing music are totally free.The data I am using is Top 100 songs of each year on Spotify from 2010 to 2019.The data include manys variables such as "Beats Per Minute - The tempo of the song","Energy - How energetic the song is","Danceability - How easy it is to dance to the song" and so on.What I am trying to find out is the relationship of each variables and focus on how these variables affect the Popularity of the song (not a ranking).
+
+
+```{r}
+#Data input and clean
+library(readxl)
+library(stringr)
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(PerformanceAnalytics)
+
+orignal_data<- read_xlsx("~/Desktop/Spotify 2010 - 2019 Top 100 Songs.xlsx")
+
+data_hiphop<-orignal_data%>%  
+  filter(
+    str_detect(orignal_data$'top genre', "hip hop"))
+data_hiphop%<>%as_tibble(data_hiphop)%>%mutate(type='hiphop')
+
+
+
+data_rock<-orignal_data%>%  
+  filter(
+    str_detect(orignal_data$'top genre', "rock"))
+data_rock%<>%as_tibble(data_rock)%>%mutate(type='rock')
+
+
+data_r_and_b<-orignal_data%>%  
+  filter(
+    str_detect(orignal_data$'top genre', "r&b"))
+data_r_and_b%<>%as_tibble(data_r_and_b)%>%mutate(type='r&b')
+
+
+data_rap<-orignal_data%>%  
+  filter(
+    str_detect(orignal_data$'top genre', "rap"))
+data_rap%<>%as_tibble(data_rap)%>%mutate(type='rap')
+
+
+data_electro<-orignal_data%>%  
+  filter(
+    str_detect(orignal_data$'top genre', "electro"))
+data_electro%<>%as_tibble(data_electro)%>%mutate(type='electro')
+
+
+data_house<-orignal_data%>%  
+  filter(
+    str_detect(orignal_data$'top genre', "house"))
+data_house%<>%as_tibble(data_house)%>%mutate(type='house')
+
+data_dance_pop<-orignal_data%>%  
+  filter(
+    str_detect(orignal_data$'top genre', "dance pop"))
+data_dance_pop%<>%as_tibble(data_dance_pop)%>%mutate(type='dance_pop')
+
+data_art_pop<-orignal_data%>%  
+  filter(
+    str_detect(orignal_data$'top genre', "art pop"))
+data_art_pop%<>%as_tibble(data_art_pop)%>%mutate(type='art_pop')
+
+
+data_pop<-orignal_data%>%  
+  filter(
+    str_detect(orignal_data$'top genre', "^pop"))
+data_pop%<>%as_tibble(data_pop)%>%mutate(type='pop')
+
+
+data_folk_pop<-orignal_data%>%  
+  filter(
+    str_detect(orignal_data$'top genre', "folk-pop"))
+data_folk_pop%<>%as_tibble(data_folk_pop)%>%mutate(type='folk_pop')
+
+
+temp1<-rbind(data_hiphop,data_rock)
+temp2<-rbind(temp1,data_r_and_b)
+temp3<-rbind(temp2,data_rap)
+temp4<-rbind(temp3,data_dance_pop)
+temp5<-rbind(temp4,data_electro)
+temp6<-rbind(temp5,data_art_pop)
+temp7<-rbind(temp6,data_house)
+temp8<-rbind(temp7,data_pop)
+new_data<-rbind(temp8,data_folk_pop)
+
+
+```
+
+
+
+### New data distribution
+```{r}
+genre <- data.frame(name = c('pop','hiphop','rock','r and b',
+                              'rap','dance pop','electro','art pop','house','folk_pop')
+                    ,count = c(66,126,40,16,74,361,10,37,11,15))
+ggplot(genre) +
+  aes(x = reorder(name,count), y = count) +
+  geom_col(fill = "#228B22") +
+  labs(x = "genre", y = "counts", title="Counts of genre") +
+  theme_minimal() +
+  coord_flip()
+```
+Because there are so many genre that only appear once or twice, so I tide up a new data to see the general distribution of the most appeared music genre. Form the graph we can see that The dance pop take place most of the music genre.
+
+### relationship of each variables
+```{r}
+chart.Correlation(orignal_data[,6:15], histogram=TRUE, pch=20)
+
+genre<-new_data[,c(3,6:17)]
+
+regulation<-function(x){
+  return( (x - min(x,na.rm = T))/( max(x, na.rm = T) - min(x, na.rm = T)) )
+}
+
+for(i in 2:12){
+  genre[,i] = regulation(genre[,i])
+}
+
+genre2<-genre[,13]%>%dummy_cols(remove_selected_columns = T)
+genre<-genre[,-13]%>%cbind(genre2)
+
+genre[,c(2:16)]%>%
+  cor()%>%
+  melt()%>%
+  ggplot(aes(Var1, Var2, fill=value))+
+  geom_tile(color='white')+
+  scale_fill_distiller(palette = 'GnBu', direction = 1)+
+  geom_text(aes(label=paste(round(value,2)*100,'%')), size=2.5, color='black')+
+  labs(x='',y='',fill='correlations', title='Relationship between music features')+
+  theme(axis.text.x = element_text(angle = 90, vjust = .5))
+```
+#### From the graph we can conclude that:
+1.Decibel(How loud the song is), Energy are highly correlated
+2.Energy, Val(How positive the mood of the song is) are seldom correlated
+3.Acoustic(How acoustic the song is) is largely negatively correlated to Energy, Decibel
+
+Acoustic, solo and Danceability is highly correlated with the Popularity of the song,
+it can inferred that more Danceability, Acoustic, artistic type is Solo and Trio are more popular.
+However nrgy has a negative affect with Popularity of the song.
+
+
+
+### Top artist in each year
+```{r}
+top_artist<-orignal_data%>%
+  group_by(`top year`)%>%
+  count(artist)%>%
+  mutate(prop=n/sum(n))
+
+top_artist[order(top_artist$n, decreasing=TRUE)[1:30], ]%>%
+  ggplot(aes(as_factor(`top year`), prop, fill=artist))+
+  geom_bar(stat='identity',  color = 'white', show.legend = F)+
+  geom_text(aes(label=paste(artist)), size=2.5, color='black',
+            position = position_stack(vjust = .5))+
+  theme_bw()+
+  labs(title='Hot artists in each year', y='Percent', x='Year')
+```
+From the graph we can conclude that Ariana Grande, Post Malone, Billie Eilish are the top singer in recent year.
+
+### Top genre in each year
+```{r}
+top_genre<-orignal_data%>%
+  group_by(`top year`)%>%
+  count(`top genre`)%>%
+  mutate(prop=n/sum(n))
+
+top_genre[order(top_genre$n, decreasing=TRUE)[1:40], ]%>%
+  ggplot(aes(as_factor(`top year`), prop, fill=`top genre` ))+
+  geom_bar(stat='identity',  color = 'white', show.legend = F)+
+  geom_text(aes(label=paste(`top genre` )), size=2.5, color='black',
+            position = position_stack(vjust = .5))+
+  theme_bw()+
+  labs(title='Hot genre in each year', y='Percent', x='Year')
+```
+
+
+```{r}
+new_data%>%
+  group_by(`top year`)%>%
+  count(`top genre`)%>%
+  filter(`top genre` == 'dance pop')%>%
+  ggplot(aes(as_factor(`top year`), n))+
+  geom_point(color='lightblue')+
+  geom_line(group=1, color='lightblue')+
+  theme_bw()+
+  labs(title='Number of Dance pop in each year', y='Number of Dance pop', x='Year')
+```
+
+
+Dance pop is the most genres in every year, but the proportion is decreasing in recent year
+Latin, metro rap, rap are getting more popular in recent years
+
+## Fit a regression model
+```{r}
+
+m_1 <- lmer( pop ~ nrgy + dnce + bpm + acous + (1|type), new_data)
+summary(m_1)
+```
+
+I choose nrgy,dnce,bpm,acousas variables and try to see hows these variables affects the pop level.The reason I choose these three as my variables is because these three variables are the most co-relative to the pop level as I shows before.
+For fixed effects : nrgy for every unit increase in the number of nrgy,negative affect is expected to decrease by 0.115.
+For random effects : There are intergroup differences in popular level among music genre in different type(23.31).
+And as the results, we can see nrgy is the most meaningful value when I fit these three variables in to the multilevel linear mixed model because the only the P-value of nrgy is smaller than 0.05. 
+
+## Conclusion
+Dance pop is the most genres in every year, but the proportion is decreasing in recent year
+Latin, metro rap, rap are getting more popular in recent years. 
+Acoustic, solo and Danceability have a positive affect with the Popularity of the song.
+However nrgy has a negative affect with Popularity of the song.
+Ariana Grande, Post Malone, Billie Eilish are the top singer in recent year.
+
+## Reference
+https://www.kaggle.com/datasets/muhmores/spotify-top-100-songs-of-20152019?select=Spotify+2010+-+2019+Top+100.csv
+https://www.kaggle.com/code/teresawu726/spotify-top-100-songs-analysis-by-r#4.-Predict-the-top-song-in-future-year
+https://www.kaggle.com/datasets/muhmores/spotify-top-100-songs-of-20152019
+
+
+
+
